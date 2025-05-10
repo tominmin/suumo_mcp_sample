@@ -9,7 +9,7 @@ def scrape_suumo_list(url: str):
     soup = BeautifulSoup(res.text, "html.parser")
     print(soup)
     results = []
-    # 物件リストのパース例（必要に応じて調整）
+
     for b in soup.select(".cassetteitem"):
         title = b.select_one(".cassetteitem_content-title")
         address = b.select_one(".cassetteitem_detail-col1")

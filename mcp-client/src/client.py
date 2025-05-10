@@ -7,26 +7,26 @@ from mcp import ClientSession
 from mcp.client.sse import sse_client
 from openai import OpenAI
 
+SERVER_URL = "http://localhost:8000/mcp"
+
 load_dotenv()
 
 class MCPClient:
     def __init__(self):
-        # Initialize session and client objects
         self.session: Optional[ClientSession] = None
         self.exit_stack = AsyncExitStack()
         self.openai = OpenAI()
 
-    async def connect_to_server(self, server_url: str = "http://localhost:8000/mcp"):
+    async def connect_to_server(self, server_url: str = SERVER_URL):
         """Connect to an MCP server over HTTP
 
         Args:
-            server_url: URL of the running MCP server (default: http://localhost:8000/mcp)
+            server_url: URL of the running MCP server
         """
         http_transport = await self.exit_stack.enter_async_context(sse_client(server_url))
         self.session = await self.exit_stack.enter_async_context(ClientSession(*http_transport))
         await self.session.initialize()
 
-        # List available tools
         response = await self.session.list_tools()
         tools = response.tools
         print("\nConnected to server with tools:", [tool.name for tool in tools])
@@ -59,13 +59,10 @@ class MCPClient:
             tools=available_tools,
         )
         message = response.choices[0].message
-        # print(message)
 
-        # ツールを使わず回答できる場合はそのまま返す
         if not message.tool_calls:
             return message.content
 
-        # ツールを呼び出していれば実行して結果をmessagesに追加する
         messages.append(message)
         for tool_call in message.tool_calls:
             tool_name = tool_call.function.name
@@ -74,16 +71,7 @@ class MCPClient:
             tool_args = json.loads(tool_call.function.arguments)
 
             tool_result = await self.session.call_tool(tool_name, tool_args)
-            # print(tool_result)
             tool_result_contents = [content.model_dump() for content in tool_result.content]
-
-            # print(
-            #     "=================\n"
-            #     f"Use Tool: {tool_name}\n"
-            #     f"- Tool Arguments: {tool_args}\n"
-            #     f"- Tool Result: {tool_result_contents}\n"
-            #     "================="
-            # )
 
             messages.append(
                 {
@@ -94,12 +82,10 @@ class MCPClient:
                 }
             )
 
-        # print(messages)
         response = self.openai.chat.completions.create(
             model="gpt-4o",
             messages=messages,
         )
-        # print(response)
         return response.choices[0].message.content
 
     async def chat_loop(self):
