@@ -1,7 +1,5 @@
-
 import asyncio
 from client import MCPClient
-
 
 async def main():        
     client = MCPClient()
